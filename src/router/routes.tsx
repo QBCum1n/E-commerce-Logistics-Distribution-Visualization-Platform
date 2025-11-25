@@ -1,7 +1,7 @@
 import { type RouteObject, Navigate } from "react-router-dom";
-import DashboardPage from "../pages/dashboard";
-import LoginPage from "../pages/login";
-import TestPage from "../pages/test";
+import DashboardPage from "@/pages/dashboard";
+import LoginPage from "@/pages/login";
+import TestPage from "@/pages/test";
 
 export const appRoutes: RouteObject[] = [
 	{

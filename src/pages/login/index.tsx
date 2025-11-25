@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Button, Card, Form, Input, Typography, message } from "antd";
+import { Button, Card, Form, Input, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
+import { request } from "@/utils/request";
+import { useToastMessage } from "@/hooks/useToastMessage";
 
 type LoginFormValues = {
 	username: string;
@@ -12,15 +14,33 @@ const { Title, Text } = Typography;
 const LoginPage = () => {
 	const navigate = useNavigate();
 	const [loading, setLoading] = useState(false);
-	const [messageApi, contextHolder] = message.useMessage();
+	const { toastMessage, contextHolder } = useToastMessage();
 
-	const handleFinish = (values: LoginFormValues) => {
+	const handleFinish = async (values: LoginFormValues) => {
 		setLoading(true);
-		setTimeout(() => {
-			messageApi.success(`欢迎回来，${values.username}`);
+		try {
+			const result = await request<{
+				access_token: string;
+				refresh_token: string;
+				token_type: string;
+				user: { email?: string };
+			}>({
+				url: "auth/v1/token?grant_type=password",
+				method: "POST",
+				data: {
+					email: values.username,
+					password: values.password,
+				},
+			});
+
+			toastMessage("success", `欢迎回来，${result.user?.email ?? values.username}`);
 			navigate("/dashboard");
+		} catch (err) {
+			const description = err instanceof Error ? err.message : "登录失败，请检查账号或密码";
+			toastMessage("error", description);
+		} finally {
 			setLoading(false);
-		}, 600);
+		}
 	};
 
 	return (

@@ -1,5 +1,5 @@
 import { Card } from "antd";
-import Map from "../components/map";
+import Map from "@/components/map";
 
 const containerStyle: React.CSSProperties = {
 	width: "100%",
