@@ -21,7 +21,6 @@ client.interceptors.request.use((config) => {
 	if (!headers.has("Content-Type") && config.method?.toUpperCase() !== "GET") {
 		headers.set("Content-Type", "application/json");
 	}
-
 	config.headers = headers;
 	return config;
 });
@@ -35,7 +34,6 @@ client.interceptors.response.use(
 			error.response?.data?.msg ??
 			error.message ??
 			"请求失败，请稍后再试";
-
 		const wrappedError = new Error(description);
 		return Promise.reject(wrappedError);
 	}

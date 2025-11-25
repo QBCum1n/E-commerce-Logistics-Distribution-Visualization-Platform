@@ -22,7 +22,7 @@ const LoginPage = () => {
 	const handleFinish = async (values: LoginFormValues) => {
 		setLoading(true);
 		try {
-			const result = await request<{
+			await request<{
 				access_token: string;
 				refresh_token: string;
 				token_type: string;
@@ -35,9 +35,9 @@ const LoginPage = () => {
 					password: values.password,
 				},
 			});
-
-			toastMessage("success", `欢迎回来，${result.user?.email ?? values.username}`);
-			navigate("/dashboard");
+			// console.log(result);
+			toastMessage("success","登录成功");
+			setTimeout(() => navigate("/dashboard"), 800); // 延迟跳转以展示提示信息
 		} catch (err) {
 			const description = err instanceof Error ? err.message : "登录失败，请检查账号或密码";
 			toastMessage("error", description);
@@ -57,12 +57,11 @@ const LoginPage = () => {
 			{/* 布局容器：Flex布局，md:items-start 将内容靠左对齐 */}
 			<div className="relative z-10 flex min-h-screen flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 md:items-start">
 				{/* 登录卡片容器 */}
-				<Card
-					className="w-full max-w-md overflow-hidden rounded-2xl bg-white/95 shadow-2xl backdrop-blur-sm transition-all md:mr-10 lg:mr-20 p-1">
+				<Card className="w-full max-w-md overflow-hidden rounded-2xl bg-white/95 shadow-2xl backdrop-blur-sm transition-all md:mr-10 lg:mr-20 p-1">
 					{/* 标题区域 */}
 					<div className="mb-8 text-center">
 						<Title level={2} className="!mb-2 !font-bold text-slate-800">
-						电商物流配送可视化平台
+							电商物流配送可视化平台
 						</Title>
 						<Text className="text-slate-500">使用企业账号登录，管理订单与出库进度</Text>
 					</div>
