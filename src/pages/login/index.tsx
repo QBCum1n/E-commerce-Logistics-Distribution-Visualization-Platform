@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Button, Card, Form, Input, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
-import { UserOutlined, LockOutlined } from "@ant-design/icons"; // 引入图标增强视觉
-import { request } from "@/utils/request";
+import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useToastMessage } from "@/hooks/useToastMessage";
-// 引入背景图
+import { supabase } from "@/lib/supabaseClient"; 
 import loginBg from "@/assets/images/login.png";
 
 type LoginFormValues = {
@@ -22,23 +21,24 @@ const LoginPage = () => {
 	const handleFinish = async (values: LoginFormValues) => {
 		setLoading(true);
 		try {
-			await request<{
-				access_token: string;
-				refresh_token: string;
-				token_type: string;
-				user: { email?: string };
-			}>({
-				url: "auth/v1/token?grant_type=password",
-				method: "POST",
-				data: {
-					email: values.username,
-					password: values.password,
-				},
+			// 2. 修改这里：使用 supabase SDK 进行登录
+			// SDK 会自动将返回的 token 存入 LocalStorage，并更新实例状态
+			const { data, error } = await supabase.auth.signInWithPassword({
+				email: values.username,
+				password: values.password,
 			});
-			// console.log(result);
-			toastMessage("success","登录成功");
-			setTimeout(() => navigate("/dashboard"), 800); // 延迟跳转以展示提示信息
+
+			if (error) {
+				throw error;
+			}
+
+			// 3. (可选) 打印一下确认登录成功
+			console.log("登录成功，Session 已保存:", data);
+
+			toastMessage("success", "登录成功");
+			setTimeout(() => navigate("/dashboard"), 800); 
 		} catch (err) {
+			// 错误处理保持不变
 			const description = err instanceof Error ? err.message : "登录失败，请检查账号或密码";
 			toastMessage("error", description);
 		} finally {
@@ -47,18 +47,14 @@ const LoginPage = () => {
 	};
 
 	return (
-		// 外层容器：设置背景图，覆盖全屏
 		<div className="relative min-h-screen w-full bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${loginBg})` }}>
-			{/* 黑色遮罩层：让背景图变暗，突出表单 */}
-			<div className="absolute inset-0" />
+			<div className="absolute inset-0 bg-black/30" /> 
+            {/* 注意：加了 bg-black/30 遮罩让文字更清晰，如果不想要可以去掉 */}
 
 			{contextHolder}
 
-			{/* 布局容器：Flex布局，md:items-start 将内容靠左对齐 */}
 			<div className="relative z-10 flex min-h-screen flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 md:items-start">
-				{/* 登录卡片容器 */}
 				<Card className="w-full max-w-md overflow-hidden rounded-2xl bg-white/95 shadow-2xl backdrop-blur-sm transition-all md:mr-10 lg:mr-20 p-1">
-					{/* 标题区域 */}
 					<div className="mb-8 text-center">
 						<Title level={2} className="!mb-2 !font-bold text-slate-800">
 							电商物流配送可视化平台
@@ -97,7 +93,6 @@ const LoginPage = () => {
 						</Form.Item>
 					</Form>
 
-					{/* 底部链接 */}
 					<div className="flex flex-col gap-2 text-center text-xs text-slate-400 mt-4">
 						<span className="cursor-pointer hover:text-blue-600 transition-colors">如忘记密码，请联系管理员重置</span>
 						<span>登录即代表同意《隐私政策》与《服务条款》</span>
