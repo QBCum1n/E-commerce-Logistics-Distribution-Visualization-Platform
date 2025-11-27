@@ -48,9 +48,7 @@ const LoginPage = () => {
 
 	return (
 		<div className="relative min-h-screen w-full bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${loginBg})` }}>
-			<div className="absolute inset-0 bg-black/30" /> 
-            {/* 注意：加了 bg-black/30 遮罩让文字更清晰，如果不想要可以去掉 */}
-
+			<div className="absolute inset-0" /> 
 			{contextHolder}
 
 			<div className="relative z-10 flex min-h-screen flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 md:items-start">
