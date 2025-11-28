@@ -3,6 +3,8 @@ import { Modal, Descriptions, Table, Tag, Timeline, Card, Divider, Spin, Empty }
 import { ClockCircleOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import { supabase } from "@/lib/supabaseClient";
 import type { Order } from "@/types/order"; // 假设你的Order类型定义在这里
+import type { LogisticsProvider } from "@/services/logisticsService";
+import { getLogisticsProviderById } from "@/services/logisticsService";
 
 // 定义子表数据类型
 interface OrderItem {
@@ -31,6 +33,7 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [trajectories, setTrajectories] = useState<LogisticsTrajectory[]>([]);
+  const [logisticsProvider, setLogisticsProvider] = useState<LogisticsProvider | null>(null);
 
   // 状态映射配置（复用列表页的逻辑）
   const statusMap: Record<string, { color: string; text: string }> = {
@@ -45,10 +48,17 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
   useEffect(() => {
     if (open && order?.id) {
       fetchDetails(order.id);
+      // 如果订单有物流公司ID，获取物流公司信息
+      if (order.logistics_provider_id) {
+        fetchLogisticsProvider(order.logistics_provider_id);
+      } else {
+        setLogisticsProvider(null);
+      }
     } else {
       // 关闭时清空数据
       setItems([]);
       setTrajectories([]);
+      setLogisticsProvider(null);
     }
   }, [open, order]);
 
@@ -74,6 +84,17 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
       console.error("加载详情失败:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 获取物流公司信息
+  const fetchLogisticsProvider = async (providerId: string) => {
+    try {
+      const provider = await getLogisticsProviderById(providerId);
+      setLogisticsProvider(provider);
+    } catch (error) {
+      console.error("获取物流公司信息失败:", error);
+      setLogisticsProvider(null);
     }
   };
 
@@ -137,8 +158,11 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
             </Descriptions.Item>
             <Descriptions.Item label="客户姓名">{order.customer_name}</Descriptions.Item>
             <Descriptions.Item label="联系电话">{order.customer_phone}</Descriptions.Item>
-            <Descriptions.Item label="收货地址" span={2}>
+            <Descriptions.Item label="收货地址">
               {order.customer_address}
+            </Descriptions.Item>
+            <Descriptions.Item label="快递公司">
+              {logisticsProvider ? logisticsProvider.name : (order.logistics_provider_id ? "加载中..." : "未指定")}
             </Descriptions.Item>
             <Descriptions.Item label="订单总额" span={2}>
               <span className="text-lg font-bold text-red-500">

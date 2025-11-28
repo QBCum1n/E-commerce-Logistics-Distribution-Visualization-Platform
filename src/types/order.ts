@@ -13,6 +13,7 @@ export interface Order {
 	actual_delivery: string | null;
 	created_at: string;
 	updated_at: string;
+	logistics_provider_id: string;
 }
 
 // 订单查询参数类型
@@ -23,4 +24,22 @@ export interface OrderQueryParams {
 	searchText: string; // 用于搜索订单号或客户名
 	sortField: string; // 数据库字段名
 	sortOrder: "asc" | "desc";
+}
+
+// 物流轨迹点类型
+export interface TrajectoryPoint {
+	id: string;
+	order_id: string;
+	location: {
+		coordinates: [number, number]; // [经度, 纬度]
+	};
+	status: "pickup" | "in_transit" | "out_for_delivery" | "delivered";
+	description: string;
+	timestamp: string;
+}
+
+// 物流轨迹类型
+export interface LogisticsTrajectory {
+	orderId: string;
+	points: TrajectoryPoint[];
 }

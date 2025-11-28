@@ -10,6 +10,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { useToastMessage } from "@/hooks/useToastMessage";
 import OrderDetailModal from "./order-detail-modal";
 import DeleteModal from "./delete-modal";
+import LogisticsProviderModal from "./logistics-provider-modal";
+import { updateOrderLogisticsProvider } from "@/services/logisticsService";
 
 // -----------------------------------------------------------------------------
 // 样式工具
@@ -47,6 +49,11 @@ const OrderList = () => {
 	const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 	const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
 	const [batchLoading, setBatchLoading] = useState(false);
+	
+	// 快递公司选择相关状态
+	const [logisticsModalOpen, setLogisticsModalOpen] = useState(false);
+	const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+	const [shipLoading, setShipLoading] = useState(false);
 
 	const { toastMessage, contextHolder } = useToastMessage();
 
@@ -164,6 +171,32 @@ const OrderList = () => {
 				errorMessage = (error as PostgrestError | Error).message;
 			}
 			toastMessage("error", errorMessage);
+		}
+	};
+
+//发货按钮逻辑
+	const handleShipOrder = async (orderId: string) => {
+		// 打开快递公司选择弹窗
+		setSelectedOrderId(orderId);
+		setLogisticsModalOpen(true);
+	};
+	
+	// 处理快递公司选择后的发货
+	const handleConfirmShipping = async (orderId: string, providerId: string) => {
+		setShipLoading(true);
+		try {
+			await updateOrderLogisticsProvider(orderId, providerId);
+			toastMessage("success", "订单已发货");
+			setLogisticsModalOpen(false);
+			fetchOrders();
+		} catch (error: unknown) {
+			let errorMessage = "操作失败";
+			if (typeof error === "object" && error !== null && "message" in error) {
+				errorMessage = (error as PostgrestError | Error).message;
+			}
+			toastMessage("error", errorMessage);
+		} finally {
+			setShipLoading(false);
 		}
 	};
 
@@ -295,6 +328,19 @@ const OrderList = () => {
 							icon={<CheckCircleOutlined style={{ color: "#4f46e5" }} />}>
 							<button className="group flex items-center gap-1 text-xs font-medium text-indigo-500 hover:text-indigo-600 transition-all duration-200 active:scale-95">
 								<span>确认</span>
+							</button>
+						</Popconfirm>
+					)}
+					{record.status === "confirmed" && (
+						<Popconfirm
+							title={<span className="font-medium text-slate-700">确认发货</span>}
+							description={<span className="text-slate-500 text-xs">确认后订单将进入运输中状态</span>}
+							onConfirm={() => handleShipOrder(record.id)}
+							okText="确认"
+							cancelText="取消"
+							icon={<CheckCircleOutlined style={{ color: "#0ea5e9" }} />}>
+							<button className="group flex items-center gap-1 text-xs font-medium text-sky-500 hover:text-sky-600 transition-all duration-200 active:scale-95">
+								<span>发货</span>
 							</button>
 						</Popconfirm>
 					)}
@@ -472,6 +518,14 @@ const OrderList = () => {
 					onConfirm={handleBatchDelete}
 					count={selectedRowKeys.length}
 					loading={batchLoading}
+				/>
+				
+				{/* 快递公司选择弹窗 */}
+				<LogisticsProviderModal
+					open={logisticsModalOpen}
+					onCancel={() => setLogisticsModalOpen(false)}
+					onConfirm={(providerId) => handleConfirmShipping(selectedOrderId, providerId)}
+					loading={shipLoading}
 				/>
 			</div>
 		</ConfigProvider>
