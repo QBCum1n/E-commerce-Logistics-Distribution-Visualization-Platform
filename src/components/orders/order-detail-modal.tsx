@@ -158,8 +158,8 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
             </Descriptions.Item>
             <Descriptions.Item label="客户姓名">{order.customer_name}</Descriptions.Item>
             <Descriptions.Item label="联系电话">{order.customer_phone}</Descriptions.Item>
-            <Descriptions.Item label="收货地址">
-              {order.customer_address}
+            <Descriptions.Item label="收货地址" span={2}>
+              {order.customer_address || "未填写"}
             </Descriptions.Item>
             <Descriptions.Item label="快递公司">
               {logisticsProvider ? logisticsProvider.name : (order.logistics_provider_id ? "加载中..." : "未指定")}
@@ -189,6 +189,7 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
               bordered
             />
           </div>
+
 
           {/* 3. 物流轨迹 */}
           {(order.status === "shipping" || order.status === "delivered") && (
