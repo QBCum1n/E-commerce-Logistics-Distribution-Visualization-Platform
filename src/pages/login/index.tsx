@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import loginBg from "@/assets/images/login.png";
 
 // 用户角色类型
-type UserRole = "admin" | "merchant" | null;
+type UserRole = "admin" | "merchant" | "customer" | null;
 
 type LoginFormValues = {
 	username: string;
@@ -49,7 +49,7 @@ const LoginPage = () => {
 				console.warn("无法从profiles表获取用户角色，将尝试从用户邮箱推断");
 				// 备用方案：根据邮箱前缀判断用户角色
 				const email = authData.user?.email || "";
-				const userRole: UserRole = email.includes("admin") ? "admin" : "merchant";
+				const userRole: UserRole = email.includes("customer") ? "customer" : "merchant";
 				navigateBasedOnRole(userRole);
 			} else {
 				// 成功获取用户角色
@@ -70,7 +70,7 @@ const LoginPage = () => {
 		console.log("用户角色:", role);
 		toastMessage("success", "登录成功");
 		// 根据角色跳转到不同页面
-		if (role === "admin") {
+		if (role === "customer") {
 			setTimeout(() => navigate("/user"), 800);
 		} else if (role === "merchant") {
 			setTimeout(() => navigate("/merchant/order"), 800);

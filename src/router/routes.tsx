@@ -6,6 +6,7 @@ import LogisticsTrajectoryPage from "@/pages/merchant/trajectory/LogisticsTrajec
 import OrderManagement from "@/pages/merchant/order";
 import DeliveryRangeManagementPage from "@/pages/dashboard/delivery-range-management";
 import UserPage from "@/pages/user";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export const appRoutes: RouteObject[] = [
 	{
@@ -18,7 +19,11 @@ export const appRoutes: RouteObject[] = [
 	},
 	{
 		path: "/dashboard",
-		element: <DashboardPage />,
+		element: (
+			<ProtectedRoute OnlyUserRoute>
+				<DashboardPage />
+			</ProtectedRoute>
+		),
 		children: [
 			{
 				path: "delivery-range",
@@ -28,7 +33,11 @@ export const appRoutes: RouteObject[] = [
 	},
 	{
 		path: "/merchant",
-		element: <MerchantPage />,
+		element: (
+			<ProtectedRoute OnlyUserRoute>
+				<MerchantPage />
+			</ProtectedRoute>
+		),
 		children: [
 			{
 				path: "order",
@@ -42,7 +51,11 @@ export const appRoutes: RouteObject[] = [
 	},
 	{
 		path: "/user",
-		element: <UserPage />,
+		element: (
+			<ProtectedRoute>
+				<UserPage />
+			</ProtectedRoute>
+		),
 	},
 	{
 		path: "*",
