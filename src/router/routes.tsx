@@ -2,8 +2,9 @@ import { type RouteObject, Navigate } from "react-router-dom";
 import DashboardPage from "@/pages/dashboard";
 import LoginPage from "@/pages/login";
 import MerchantPage from "@/pages/merchant";
-import LogisticsTrajectoryPage from "@/pages/merchant/trajectory/LogisticsTrajectoryPage";
+import LogisticsTrajectoryPage from "@/pages/merchant/trajectory";
 import OrderManagement from "@/pages/merchant/order";
+import MerchantDashboard from "@/pages/merchant/VisualDashboard";
 import DeliveryRangeManagementPage from "@/pages/dashboard/delivery-range-management";
 import UserPage from "@/pages/user";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -46,6 +47,10 @@ export const appRoutes: RouteObject[] = [
 			{
 				path: "trajectory",
 				element: <LogisticsTrajectoryPage />,
+			},
+			{
+				path: "dashboard",
+				element: <MerchantDashboard />,
 			},
 		],
 	},

@@ -159,6 +159,27 @@ export const createOrder = async (order: Omit<Order, "id" | "created_at" | "upda
 			.single();
 
 		if (error) throw error;
+		
+		// 如果订单创建成功，确保配送距离被计算
+		// 注意：数据库触发器会自动计算配送距离，但这里我们再次确保
+		if (data && data.id) {
+			try {
+				// 获取更新后的订单信息，包括配送距离
+				const { data: updatedOrder, error: fetchError } = await supabase
+					.from("orders")
+					.select("delivery_distance")
+					.eq("id", data.id)
+					.single();
+				
+				if (!fetchError && updatedOrder) {
+					data.delivery_distance = updatedOrder.delivery_distance;
+				}
+			} catch (distanceError) {
+				console.warn("获取配送距离失败:", distanceError);
+				// 不影响订单创建流程，只是记录警告
+			}
+		}
+		
 		return data;
 	} catch (error) {
 		console.error("创建订单失败:", error);

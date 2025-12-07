@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Layout, Menu, Avatar, Dropdown, Space, ConfigProvider, theme, message } from "antd";
-import { OrderedListOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined, DashboardOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -25,6 +25,11 @@ const MainLayout = () => {
 			key: "/merchant/trajectory",
 			icon: <EnvironmentOutlined />,
 			label: "配送管理",
+		},
+		{
+			key: "/merchant/dashboard",
+			icon: <DashboardOutlined />,
+			label: "可视化看板",
 		},
 	];
 

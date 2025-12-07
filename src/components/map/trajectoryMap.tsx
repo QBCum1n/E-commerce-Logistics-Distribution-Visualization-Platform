@@ -29,7 +29,7 @@ type TrajectoryStatus = "pickup" | "in_transit" | "out_for_delivery" | "delivere
 
 // 状态颜色映射
 const STATUS_COLORS: Record<TrajectoryStatus, string> = {
-	pickup: "#1890ff", // 蓝色 - 已取件
+	pickup: "#1890ff", // 蓝色 - 已揽件
 	in_transit: "#faad14", // 橙色 - 运输中
 	out_for_delivery: "#52c41a", // 绿色 - 派送中
 	delivered: "#722ed1", // 紫色 - 已送达
@@ -37,7 +37,7 @@ const STATUS_COLORS: Record<TrajectoryStatus, string> = {
 
 // 状态名称映射
 const STATUS_NAMES: Record<TrajectoryStatus, string> = {
-	pickup: "已取件",
+	pickup: "已揽件",
 	in_transit: "运输中",
 	out_for_delivery: "派送中",
 	delivered: "已送达",
@@ -108,6 +108,11 @@ const TrajectoryMap = forwardRef<TrajectoryMapRef, TrajectoryMapProps>(({ orders
 	const clearTrajectoriesFromMap = useCallback(() => {
 		// 清除标记点
 		markersRef.current.forEach(marker => {
+			// 清除波纹效果的定时器
+			const extData = marker.getExtData();
+			if (extData && extData.rippleInterval) {
+				clearInterval(extData.rippleInterval);
+			}
 			mapInstanceRef.current?.remove(marker);
 		});
 		markersRef.current = [];
@@ -185,6 +190,55 @@ const TrajectoryMap = forwardRef<TrajectoryMapRef, TrajectoryMapProps>(({ orders
 			
 			mapInstanceRef.current.add(marker);
 			markersRef.current.push(marker);
+
+			// 为最新的轨迹点（订单当前位置）添加波纹效果
+			if (index === points.length - 1) {
+								// 创建持续波纹效果的函数
+				const createContinuousRipple = () => {
+					// 创建波纹圆圈
+					const rippleCircle = new window.AMap!.Circle({
+						center: position,
+						radius: 50, // 初始半径
+						strokeColor: STATUS_COLORS[point.status as TrajectoryStatus],
+						strokeWeight: 2,
+						strokeOpacity: 0.8,
+						fillColor: STATUS_COLORS[point.status as TrajectoryStatus],
+						fillOpacity: 0.3,
+						zIndex: 10,
+					});
+					
+					mapInstanceRef.current.add(rippleCircle);
+					
+					// 动画效果：波纹扩散
+					let radius = 50;
+					let opacity = 0.8;
+					const interval = setInterval(() => {
+						radius += 5;
+						opacity -= 0.02;
+						
+						if (opacity <= 0) {
+							clearInterval(interval);
+							mapInstanceRef.current?.remove(rippleCircle);
+							return;
+						}
+						
+						rippleCircle.setRadius(radius);
+						rippleCircle.setOptions({
+							strokeOpacity: opacity,
+							fillOpacity: opacity * 0.4,
+						});
+					}, 50);
+				};
+				
+				// 立即创建第一个波纹
+				createContinuousRipple();
+				
+				// 每隔2秒创建一个新的波纹，实现持续效果
+				const rippleInterval = setInterval(createContinuousRipple, 2000);
+				
+				// 将interval ID存储在标记上，以便在清除轨迹时能够清除
+				marker.setExtData({ rippleInterval });
+			}
 		});
 
 		// 调整地图视野以包含所有轨迹点
@@ -274,6 +328,53 @@ const TrajectoryMap = forwardRef<TrajectoryMapRef, TrajectoryMapProps>(({ orders
 				
 				mapInstanceRef.current.add(endMarker);
 				markersRef.current.push(endMarker);
+
+				// 为终点（订单当前位置）添加波纹效果
+				// 创建持续波纹效果的函数
+				const createContinuousRipple = () => {
+					// 创建波纹圆圈
+					const rippleCircle = new window.AMap!.Circle({
+						center: position,
+						radius: 50, // 初始半径
+						strokeColor: color,
+						strokeWeight: 2,
+						strokeOpacity: 0.8,
+						fillColor: color,
+						fillOpacity: 0.3,
+						zIndex: 10,
+					});
+					
+					mapInstanceRef.current.add(rippleCircle);
+					
+					// 动画效果：波纹扩散
+					let radius = 50;
+					let opacity = 0.8;
+					const interval = setInterval(() => {
+						radius += 5;
+						opacity -= 0.02;
+						
+						if (opacity <= 0) {
+							clearInterval(interval);
+							mapInstanceRef.current?.remove(rippleCircle);
+							return;
+						}
+						
+						rippleCircle.setRadius(radius);
+						rippleCircle.setOptions({
+							strokeOpacity: opacity,
+							fillOpacity: opacity * 0.4,
+						});
+					}, 50);
+				};
+				
+				// 立即创建第一个波纹
+				createContinuousRipple();
+				
+				// 每隔2秒创建一个新的波纹，实现持续效果
+				const rippleInterval = setInterval(createContinuousRipple, 2000);
+				
+				// 将interval ID存储在标记上，以便在清除轨迹时能够清除
+				endMarker.setExtData({ rippleInterval });
 			}
 		});
 
@@ -430,7 +531,7 @@ const TrajectoryMap = forwardRef<TrajectoryMapRef, TrajectoryMapProps>(({ orders
 	}, [showAllTrajectories, loadAllTrajectories, orders]);
 
 	return (
-		<div style={{ position: "relative", width: "100%", height: "100%" }}>
+		<div style={{ position: "relative", width: "100%", height: "140%" }}>
 			{contextHolder}
 			{loading && (
 				<div
@@ -453,11 +554,11 @@ const TrajectoryMap = forwardRef<TrajectoryMapRef, TrajectoryMapProps>(({ orders
 			<Card
 				style={{
 					position: "absolute",
-					top: 510,
+					top: 0,
 					left: 10,
 					zIndex: 2,
 					width: "20%",
-					maxHeight: "50%",
+					maxHeight: "100%",
 					overflow: "auto",
 				}}
 				size="small"

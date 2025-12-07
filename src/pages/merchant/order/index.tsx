@@ -11,6 +11,7 @@ import { useToastMessage } from "@/hooks/useToastMessage";
 import OrderDetailModal from "../../../components/orders/order-detail-modal";
 import DeleteModal from "../../../components/orders/delete-modal";
 import LogisticsProviderModal from "../../../components/orders/logistics-provider-modal";
+import CustomerLocation from "../../../components/orders/CustomerLocation";
 import { updateOrderLogisticsProvider } from "@/services/logisticsService";
 
 // -----------------------------------------------------------------------------
@@ -263,14 +264,10 @@ const OrderList = () => {
 		},
 		{
 			title: "客户位置",
-			dataIndex: "customer_location",
+			dataIndex: "id",
 			key: "customer_location",
 			ellipsis: { showTitle: false },
-			render: (location) => (
-				<Tooltip title={location ? `经度: ${location.coordinates[0]}, 纬度: ${location.coordinates[1]}` : "未设置"} placement="topLeft" className="max-w-xs">
-					<span className="text-slate-400 text-xs">{location ? `${location.coordinates[1].toFixed(4)}, ${location.coordinates[0].toFixed(4)}` : "未设置"}</span>
-				</Tooltip>
-			),
+			render: (orderId) => <CustomerLocation orderId={orderId} />,
 		},
 		{
 			title: "总金额",

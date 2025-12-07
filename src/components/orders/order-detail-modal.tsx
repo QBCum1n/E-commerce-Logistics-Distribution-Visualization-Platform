@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { Order } from "@/types/order"; // 假设你的Order类型定义在这里
 import type { LogisticsProvider } from "@/services/logisticsService";
 import { getLogisticsProviderById } from "@/services/logisticsService";
+import CustomerLocation from "./CustomerLocation";
 
 // 定义子表数据类型
 interface OrderItem {
@@ -159,7 +160,13 @@ const OrderDetailModal = ({ open, onClose, order }: OrderDetailModalProps) => {
             <Descriptions.Item label="客户姓名">{order.customer_name}</Descriptions.Item>
             <Descriptions.Item label="联系电话">{order.customer_phone}</Descriptions.Item>
             <Descriptions.Item label="收货地址" span={2}>
-              {order.customer_address || "未填写"}
+              <div className="space-y-2">
+                <div>{order.customer_address || "未填写"}</div>
+                <div className="text-xs text-slate-500">
+                  <span className="font-medium">坐标位置：</span>
+                  <CustomerLocation orderId={order.id} />
+                </div>
+              </div>
             </Descriptions.Item>
             <Descriptions.Item label="快递公司">
               {logisticsProvider ? logisticsProvider.name : (order.logistics_provider_id ? "加载中..." : "未指定")}

@@ -67,7 +67,7 @@ const LogisticsTrajectoryPage = () => {
 				// 获取所有订单
 				data = await getOrders({
 					page: 1,
-					pageSize: 20,
+					pageSize: 100000,
 					status: "ALL",
 					searchText: "",
 					sortField: "created_at",
