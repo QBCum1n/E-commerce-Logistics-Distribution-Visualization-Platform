@@ -5,7 +5,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import type { Order, OrderQueryParams } from "@/types/order";
 import { useState, useEffect, useCallback } from "react";
 import { Table, Card, Radio, Input, Button, Typography, Space, Popconfirm, Divider, ConfigProvider, Tooltip } from "antd";
-import { ReloadOutlined, SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined ,DeleteOutlined} from "@ant-design/icons";
+import { ReloadOutlined, SearchOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DeleteOutlined } from "@ant-design/icons";
 import { supabase } from "@/lib/supabaseClient";
 import { useToastMessage } from "@/hooks/useToastMessage";
 import OrderDetailModal from "../../../components/orders/order-detail-modal";
@@ -49,7 +49,7 @@ const OrderList = () => {
 	const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 	const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
 	const [batchLoading, setBatchLoading] = useState(false);
-	
+
 	// 快递公司选择相关状态
 	const [logisticsModalOpen, setLogisticsModalOpen] = useState(false);
 	const [selectedOrderId, setSelectedOrderId] = useState<string>("");
@@ -174,13 +174,13 @@ const OrderList = () => {
 		}
 	};
 
-//发货按钮逻辑
+	//发货按钮逻辑
 	const handleShipOrder = async (orderId: string) => {
 		// 打开快递公司选择弹窗
 		setSelectedOrderId(orderId);
 		setLogisticsModalOpen(true);
 	};
-	
+
 	// 处理快递公司选择后的发货
 	const handleConfirmShipping = async (orderId: string, providerId: string) => {
 		setShipLoading(true);
@@ -221,7 +221,12 @@ const OrderList = () => {
 	};
 
 	const triggerSearch = () => {
-		setQueryParams((prev) => ({ ...prev, searchText: searchValue.trim(), page: 1 }));
+		setQueryParams((prev) => ({
+			...prev,
+			searchText: searchValue.trim(),
+			status: "ALL",
+			page: 1,
+		}));
 	};
 
 	const handleViewDetails = (order: Order) => {
@@ -260,17 +265,6 @@ const OrderList = () => {
 			key: "customer_phone",
 			width: 140,
 			render: (text) => <span className="text-[13px] text-slate-400 font-mono tracking-wide select-all">{text}</span>,
-		},
-		{
-			title: "客户位置",
-			dataIndex: "customer_location",
-			key: "customer_location",
-			ellipsis: { showTitle: false },
-			render: (location) => (
-				<Tooltip title={location ? `经度: ${location.coordinates[0]}, 纬度: ${location.coordinates[1]}` : "未设置"} placement="topLeft" className="max-w-xs">
-					<span className="text-slate-400 text-xs">{location ? `${location.coordinates[1].toFixed(4)}, ${location.coordinates[0].toFixed(4)}` : "未设置"}</span>
-				</Tooltip>
-			),
 		},
 		{
 			title: "总金额",
@@ -334,8 +328,7 @@ const OrderList = () => {
 					{record.status === "confirmed" && (
 						<button
 							className="group flex items-center gap-1 text-xs font-medium text-sky-500 hover:text-sky-600 transition-all duration-200 active:scale-95"
-							onClick={() => handleShipOrder(record.id)}
-						>
+							onClick={() => handleShipOrder(record.id)}>
 							<span>发货</span>
 						</button>
 					)}
@@ -417,12 +410,20 @@ const OrderList = () => {
 								</Button>
 							</Space.Compact>
 
-							<Tooltip title="刷新列表">
+							<Tooltip title="重置列表">
 								<Button
 									size="large"
 									shape="circle"
 									icon={<ReloadOutlined className={`text-slate-500 ${loading ? "animate-spin" : ""}`} />}
-									onClick={fetchOrders}
+									onClick={() => {
+										setSearchValue(""); // 清空搜索框
+										setQueryParams((prev) => ({
+											...prev,
+											searchText: "", // 清空搜索条件
+											status: "ALL", // 可选：重置状态筛选
+											page: 1,
+										}));
+									}}
 									className="!bg-white !border-slate-200 shadow-sm hover:!border-blue-400 hover:!text-blue-500 transition-all duration-300"
 								/>
 							</Tooltip>
@@ -514,7 +515,7 @@ const OrderList = () => {
 					count={selectedRowKeys.length}
 					loading={batchLoading}
 				/>
-				
+
 				{/* 快递公司选择弹窗 */}
 				<LogisticsProviderModal
 					open={logisticsModalOpen}

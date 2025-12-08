@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Layout, Menu, Avatar, Dropdown, Space, ConfigProvider, theme, message } from "antd";
-import { OrderedListOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined, CameraFilled } from "@ant-design/icons";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -78,7 +78,7 @@ const MainLayout = () => {
 					{/* Logo 区域 */}
 					<div className="h-16 flex items-center justify-center overflow-hidden transition-all duration-300">
 						{collapsed ? (
-							<div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center text-white font-bold">Z</div>
+							<div className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold"><CameraFilled /></div>
 						) : (
 							<span className="text-white text-lg font-bold tracking-wider">物流镜头</span>
 						)}
