@@ -19,6 +19,26 @@ export type AMapMarker = InstanceType<AMapSDK["Marker"]>;
 /** 折线实例类型 */
 export type AMapPolyline = InstanceType<AMapSDK["Polyline"]>;
 
+/** 驾车路线规划实例类型（简化） */
+export interface AMapDriving {
+  search(
+    origin: LngLatTuple | AMapLngLat | Coordinate,
+    destination: LngLatTuple | AMapLngLat | Coordinate,
+    callback: (
+      status: "complete" | "error" | string,
+      result: {
+        info?: string;
+        routes?: Array<{
+          steps?: Array<{
+            path?: AMapLngLat[];
+          }>;
+        }>;
+      }
+    ) => void
+  ): void;
+  clear(): void;
+}
+
 /** 多边形实例类型 */
 export type AMapPolygon = InstanceType<AMapSDK["Polygon"]>;
 
@@ -248,6 +268,13 @@ export interface AMapSDKWithPlugins extends AMapSDK {
   Geolocation: new (opts?: GeolocationOptions) => AMapGeolocation;
   Scale: new (opts?: ScaleOptions) => AMapScale;
   ToolBar: new (opts?: ToolBarOptions) => AMapToolBar;
+  Driving: new (opts?: Record<string, unknown>) => AMapDriving;
+  DrivingPolicy?: {
+    LEAST_TIME?: number;
+    LEAST_FEE?: number;
+    LEAST_DISTANCE?: number;
+    REAL_TRAFFIC?: number;
+  };
 }
 
 // =============================================================================
@@ -262,6 +289,9 @@ export interface Coordinate {
 
 /** 轨迹点 */
 export interface TrajectoryPoint extends Coordinate {
+  id?: string;
+  order_id?: string;
+  location?: { coordinates?: [number, number] } | string;
   timestamp?: string;
   status?: string;
   description?: string;
