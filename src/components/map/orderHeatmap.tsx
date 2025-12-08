@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import { Spin, Card, Typography, Space } from "antd";
-import { LoadingOutlined, FireOutlined } from "@ant-design/icons";
+import { Spin } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import type { Order } from "@/types/order";
 
 // 定义高德地图类型
@@ -18,8 +18,6 @@ if (typeof window !== "undefined" && !window._AMapSecurityConfig) {
 	};
 }
 
-const { Title, Text } = Typography;
-
 interface HeatmapProps {
 	orders: Order[];
 	height?: string;
@@ -30,8 +28,7 @@ interface HeatmapProps {
 const OrderHeatmap: React.FC<HeatmapProps> = ({ 
 	orders, 
 	height = "500px", 
-	title = "区域订单密度热力图",
-	showStats = true 
+
 }) => {
 	const mapRef = useRef<AMapInstance | null>(null);
 	const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +52,13 @@ const OrderHeatmap: React.FC<HeatmapProps> = ({
 					viewMode: "2D",
 					mapStyle: "amap://styles/darkblue", // 使用深蓝色地图样式
 					features: ["bg", "road", "building", "point"], // 显示地图要素
+					// 启用缩放和拖拽功能
+					showLabel: false,
+					resizeEnable: true,
+					doubleClickZoom: true,
+					scrollWheel: true,
+					dragEnable: true,
+					zoomEnable: true,
 				});
 
 				// 提取订单位置数据
@@ -93,10 +97,7 @@ const OrderHeatmap: React.FC<HeatmapProps> = ({
 					max: Math.max(5, Math.ceil(orders.length / 10)), // 动态调整最大值
 				});
 
-				// 添加地图控件
-				map.addControl(new AMap.Scale());
-				map.addControl(new AMap.ToolBar());
-
+				// 作为背景，不添加地图控件
 				// 自适应显示所有数据点
 				map.setFitView();
 
@@ -119,89 +120,39 @@ const OrderHeatmap: React.FC<HeatmapProps> = ({
 	}, [orders]);
 
 	// 计算统计数据
-	const totalOrders = orders.length;
-	const highDensityAreas = Math.ceil(totalOrders * 0.3); // 假设30%的订单集中在高密度区域
+	// const totalOrders = orders.length;
 
 	return (
-		<Card 
-			title={
-				<Space>
-					<FireOutlined style={{ color: '#FF6D00' }} />
-					<Title level={4} style={{ margin: 0 }}>{title}</Title>
-				</Space>
-			}
-			style={{ 
-				width: '100%',
-				borderRadius: '12px',
-				boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
-				background: 'rgba(255, 255, 255, 0.95)',
-				backdropFilter: 'blur(10px)',
-				border: 'none',
-				overflow: 'hidden'
-			}}
-			bodyStyle={{ padding: 0 }}
-		>
-			{showStats && (
-				<div style={{
-					padding: '16px 24px',
-					background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-					borderBottom: '1px solid #e8e8e8'
-				}}>
-					<Space size="large">
-						<div>
-							<Text type="secondary">总订单数</Text>
-							<div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff' }}>
-								{totalOrders}
-							</div>
-						</div>
-						<div>
-							<Text type="secondary">高密度区域</Text>
-							<div style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6D00' }}>
-								{highDensityAreas}
-							</div>
-						</div>
-						<div>
-							<Text type="secondary">覆盖区域</Text>
-							<div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-								{Math.ceil(totalOrders / 5)} km²
-							</div>
-						</div>
-					</Space>
+		<div style={{ position: "relative", width: "100%", height }}>
+			<div
+				ref={mapContainerRef}
+				style={{ 
+					width: "100%", 
+					height: "100%",
+				}}
+			/>
+			{loading && (
+				<div
+					style={{
+						position: "absolute",
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						display: "flex",
+						flexDirection: "column",
+						justifyContent: "center",
+						alignItems: "center",
+						backgroundColor: "rgba(0, 0, 0, 0.3)",
+					}}
+				>
+					<Spin 
+						indicator={<LoadingOutlined style={{ fontSize: 32, color: '#1890ff' }} spin />} 
+					/>
+					<div style={{ marginTop: '16px', color: '#fff' }}>正在加载热力图...</div>
 				</div>
 			)}
-			<div style={{ position: "relative", width: "100%", height }}>
-				<div
-					ref={mapContainerRef}
-					style={{ 
-						width: "100%", 
-						height: "100%",
-						borderRadius: '0 0 12px 12px'
-					}}
-				/>
-				{loading && (
-					<div
-						style={{
-							position: "absolute",
-							top: 0,
-							left: 0,
-							right: 0,
-							bottom: 0,
-							display: "flex",
-							flexDirection: "column",
-							justifyContent: "center",
-							alignItems: "center",
-							backgroundColor: "rgba(255, 255, 255, 0.9)",
-							borderRadius: '0 0 12px 12px'
-						}}
-					>
-						<Spin 
-							indicator={<LoadingOutlined style={{ fontSize: 32, color: '#1890ff' }} spin />} 
-						/>
-						<div style={{ marginTop: '16px', color: '#666' }}>正在加载热力图...</div>
-					</div>
-				)}
-			</div>
-		</Card>
+		</div>
 	);
 };
 

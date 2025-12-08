@@ -131,7 +131,10 @@ const MainLayout = () => {
 					</Header>
 
 					{/* 内容区域 */}
-					<Content className="m-0 p-0 min-h-72">
+					<Content 
+						className="m-0 p-0 min-h-72"
+						style={{ background: 'transparent' }}
+					>
 						{/* 路由出口：这里会渲染具体的页面（如 DashboardPage, OrderList 等） */}
 						<Outlet />
 					</Content>

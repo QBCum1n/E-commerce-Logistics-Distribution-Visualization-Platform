@@ -58,10 +58,6 @@ const DeliveryAnalysis: React.FC<DeliveryAnalysisProps> = ({ orders, height = "4
 
 		// 配置图表选项
 		const option = {
-			title: {
-				text: "配送时效分析",
-				left: "center",
-			},
 			tooltip: {
 				trigger: "axis",
 				axisPointer: {
@@ -87,16 +83,36 @@ const DeliveryAnalysis: React.FC<DeliveryAnalysisProps> = ({ orders, height = "4
 					},
 					axisLabel: {
 						rotate: 45,
+						color: '#ffffff'
 					},
+					axisLine: {
+						lineStyle: {
+							color: '#ffffff'
+						}
+					}
 				},
 			],
 			yAxis: [
 				{
 					type: "value",
 					name: "平均配送时长(小时)",
+					nameTextStyle: {
+						color: '#ffffff'
+					},
 					axisLabel: {
 						formatter: "{value} h",
+						color: '#ffffff'
 					},
+					axisLine: {
+						lineStyle: {
+							color: '#ffffff'
+						}
+					},
+					splitLine: {
+						lineStyle: {
+							color: 'rgba(255, 255, 255, 0.1)'
+						}
+					}
 				},
 			],
 			series: [
@@ -123,6 +139,7 @@ const DeliveryAnalysis: React.FC<DeliveryAnalysisProps> = ({ orders, height = "4
 					},
 				},
 			],
+			backgroundColor: 'transparent'
 		};
 
 		// 应用配置
