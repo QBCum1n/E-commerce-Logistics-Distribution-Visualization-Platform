@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import AMapLoader from "@amap/amap-jsapi-loader";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { updateTrajectoryPointLocation } from "@/services/logisticsService";
 import type {
 	AMapSDKWithPlugins,
 	AMapMouseEvent,
@@ -11,6 +12,9 @@ import type {
 	Coordinate,
 	OrderMapProps,
 	LngLatTuple,
+	AMapDriving,
+	AMapLngLat,
+	TrajectoryPoint,
 } from "@/types/amap";
 
 // -----------------------------------------------------------------------------
@@ -55,6 +59,7 @@ const OrderMap: React.FC<ExtendedOrderMapProps> = ({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const lastLatestPointRef = useRef<Coordinate | null>(null);
 	const AMapRef = useRef<AMapSDKWithPlugins | null>(null);
+	const drivingRef = useRef<AMapDriving | null>(null);
 	// 跟踪当前轨迹的起点，用于判断是否是新订单
 	const currentTrajectoryStartRef = useRef<LngLatTuple | null>(null);
 
@@ -111,6 +116,41 @@ const OrderMap: React.FC<ExtendedOrderMapProps> = ({
 
 	const easeOutQuad = useCallback((t: number): number => 1 - (1 - t) * (1 - t), []);
 
+	// 计算两点间距离（米）
+	const getDistanceMeters = useCallback((a: LngLatTuple, b: LngLatTuple) => {
+		const toRad = (deg: number) => (deg * Math.PI) / 180;
+		const R = 6371000;
+		const dLat = toRad(b[1] - a[1]);
+		const dLng = toRad(b[0] - a[0]);
+		const lat1 = toRad(a[1]);
+		const lat2 = toRad(b[1]);
+		const h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+		return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+	}, []);
+
+	// 确保驾车规划实例存在
+	const ensureDrivingInstance = useCallback(() => {
+		if (!AMapRef.current || !mapRef.current) return null;
+		if (!drivingRef.current) {
+			const Driving = AMapRef.current.Driving;
+			if (!Driving) return null;
+			drivingRef.current = new Driving({
+				policy: AMapRef.current.DrivingPolicy?.LEAST_DISTANCE,
+				showTraffic: false,
+				hideMarkers: true,
+			});
+		}
+		return drivingRef.current;
+	}, []);
+
+	type SimpleLngLat = { lng: number; lat: number };
+	const toLngLatTuple = useCallback((p: AMapLngLat | SimpleLngLat): LngLatTuple => {
+		if ("getLng" in p && typeof p.getLng === "function" && typeof p.getLat === "function") {
+			return [p.getLng(), p.getLat()];
+		}
+		return [p.lng, p.lat];
+	}, []);
+
 	// ---------------------------------------------------------------------------
 	// 平滑移动地图中心到指定位置
 	// ---------------------------------------------------------------------------
@@ -153,7 +193,7 @@ const OrderMap: React.FC<ExtendedOrderMapProps> = ({
 				const AMapModule = (await AMapLoader.load({
 					key: import.meta.env.VITE_AMAP_KEY || "",
 					version: "2.0",
-					plugins: ["AMap.Geolocation", "AMap.ToolBar", "AMap.Scale"],
+					plugins: ["AMap.Geolocation", "AMap.ToolBar", "AMap.Scale", "AMap.Driving"],
 				})) as AMapSDKWithPlugins;
 
 				if (!isMounted || !containerRef.current) return;
@@ -165,6 +205,19 @@ const OrderMap: React.FC<ExtendedOrderMapProps> = ({
 					zoom: 11,
 					center: [116.397428, 39.90923],
 				});
+
+				// 初始化驾车路线规划实例（最短距离）
+				try {
+					if (AMapModule.Driving) {
+						drivingRef.current = new AMapModule.Driving({
+							policy: AMapModule.DrivingPolicy?.LEAST_DISTANCE,
+							showTraffic: false,
+							hideMarkers: true,
+						});
+					}
+				} catch (err) {
+					console.warn("初始化驾车路线规划失败，将回退为直线轨迹", err);
+				}
 
 				// 添加比例尺（左下角）
 				map.addControl(new AMapModule.Scale({ position: "LB" }));
@@ -294,13 +347,14 @@ const OrderMap: React.FC<ExtendedOrderMapProps> = ({
 	// 轨迹动画（带跟随）
 	// ---------------------------------------------------------------------------
 	useEffect(() => {
-		if (!isMapReady || !mapRef.current || !AMapRef.current) return;
+		let cancelled = false;
 
-		const AMap = AMapRef.current;
 		const map = mapRef.current;
+		const AMap = AMapRef.current;
+		if (!isMapReady || !map || !AMap) return;
 
-		// 如果轨迹为空，清除所有路径和标记
-		if (!trajectories || trajectories.length === 0) {
+		// 轨迹为空的处理
+		const handleEmpty = () => {
 			if (polylineRef.current) {
 				map.remove(polylineRef.current);
 				polylineRef.current = null;
@@ -316,169 +370,263 @@ const OrderMap: React.FC<ExtendedOrderMapProps> = ({
 				animationRef.current = null;
 			}
 
-			// 如果有起点（发货地点），将地图中心设置为起点
 			if (startPoint && !userInteractedRef.current) {
 				const startPos: LngLatTuple = [startPoint.longitude, startPoint.latitude];
 				map.setZoomAndCenter(followZoom, startPos, false, 500);
 			}
-			return;
-		}
+		};
 
-		let path: LngLatTuple[] = [...trajectories].reverse().map((t) => [t.longitude, t.latitude]);
-
-		// 如果存在起点（发货地点），确保路径从起点开始
-		if (startPoint && path.length > 0) {
-			const pathStartPoint: LngLatTuple = path[0];
-			const startPointLngLat: LngLatTuple = [startPoint.longitude, startPoint.latitude];
-
-			// 检查路径的第一个点是否与起点匹配（允许小误差）
-			const distance = Math.sqrt(Math.pow(pathStartPoint[0] - startPointLngLat[0], 2) + Math.pow(pathStartPoint[1] - startPointLngLat[1], 2));
-
-			// 如果距离超过0.0001度（约11米），则在路径开头添加起点
-			if (distance > 0.0001) {
-				path = [startPointLngLat, ...path];
-			}
-		} else if (startPoint && path.length === 0) {
-			// 如果轨迹为空但有起点，至少添加起点
-			path = [[startPoint.longitude, startPoint.latitude]];
-		}
-
-		const latestPoint = path[path.length - 1];
-		const pathStartPoint = path[0]; // 轨迹路径的起点（第一个点）
-		const prevLatest = lastLatestPointRef.current;
-
-		// 判断是否是新订单（起点变化）
-		const isNewOrder =
-			currentTrajectoryStartRef.current === null ||
-			currentTrajectoryStartRef.current[0] !== pathStartPoint[0] ||
-			currentTrajectoryStartRef.current[1] !== pathStartPoint[1];
-
-		// 如果是新订单，清除旧的轨迹线和标记
-		if (isNewOrder) {
-			if (polylineRef.current) {
-				map.remove(polylineRef.current);
-				polylineRef.current = null;
-			}
-			if (carMarkerRef.current) {
-				map.remove(carMarkerRef.current);
-				carMarkerRef.current = null;
-			}
-			lastLatestPointRef.current = null;
-			if (animationRef.current) {
-				cancelAnimationFrame(animationRef.current);
-				animationRef.current = null;
-			}
-			// 更新当前轨迹起点
-			currentTrajectoryStartRef.current = pathStartPoint;
-		}
-
-		// 创建或更新轨迹线
-		if (!polylineRef.current) {
-			polylineRef.current = new AMap.Polyline({
-				path,
-				isOutline: true,
-				outlineColor: "#ffeeff",
-				borderWeight: 1,
-				strokeColor: "#3366FF",
-				strokeOpacity: 1,
-				strokeWeight: 6,
-				strokeStyle: "solid",
-				strokeDasharray: [10, 5],
-				lineJoin: "round",
-				lineCap: "round",
-				zIndex: 50,
-				map,
-			});
-		}
-
-		// 创建或更新小车标记
-		if (!carMarkerRef.current) {
-			carMarkerRef.current = new AMap.Marker({
-				position: latestPoint,
-				content: createCarContent(0),
-				offset: new AMap.Pixel(-20, -20),
-				map,
-				zIndex: 200,
-			});
-
-			// 初始化时设置视角
-			if (followCar && !userInteractedRef.current) {
-				map.setZoomAndCenter(followZoom, latestPoint, false, 500);
-			} else if (polylineRef.current) {
-				map.setFitView([polylineRef.current, carMarkerRef.current], false, [50, 50, 50, 50]);
-			}
-
-			lastLatestPointRef.current = {
-				longitude: latestPoint[0],
-				latitude: latestPoint[1],
-			};
-			return;
-		}
-
-		// 检测新点
-		const isNewPoint = prevLatest && (prevLatest.longitude !== latestPoint[0] || prevLatest.latitude !== latestPoint[1]);
-
-		if (isNewPoint && prevLatest) {
-			if (animationRef.current) cancelAnimationFrame(animationRef.current);
-
-			const startPos = prevLatest;
-			const endPos: Coordinate = {
-				longitude: latestPoint[0],
-				latitude: latestPoint[1],
+		// 构建经过路线规划的完整路径
+		const buildPlannedPath = async () => {
+			type PointMeta = {
+				coord: LngLatTuple;
+				trajectory?: TrajectoryPoint;
 			};
 
-			const angle = calculateAngle(startPos, endPos);
-			carMarkerRef.current.setAngle(90 - angle);
+			const pointMetas: PointMeta[] = [...trajectories].reverse().map((t) => ({
+				coord: [t.longitude, t.latitude] as LngLatTuple,
+				trajectory: t,
+			}));
 
-			const duration = 2000;
-			let startTime: number | null = null;
+			// 确保起点包含
+			if (startPoint && pointMetas.length > 0) {
+				const currentStart = pointMetas[0].coord;
+				const startTuple: LngLatTuple = [startPoint.longitude, startPoint.latitude];
+				if (getDistanceMeters(currentStart, startTuple) > 11) {
+					pointMetas.unshift({ coord: startTuple });
+				}
+			} else if (startPoint && pointMetas.length === 0) {
+				pointMetas.push({ coord: [startPoint.longitude, startPoint.latitude] });
+			}
 
-			const animate = (timestamp: number) => {
-				if (!startTime) startTime = timestamp;
-				const progress = Math.min((timestamp - startTime) / duration, 1);
-				const ease = easeOutQuad(progress);
+			if (pointMetas.length === 0) return [] as LngLatTuple[];
+			if (pointMetas.length === 1) return [pointMetas[0].coord];
 
-				const currentLng = startPos.longitude + (endPos.longitude - startPos.longitude) * ease;
-				const currentLat = startPos.latitude + (endPos.latitude - startPos.latitude) * ease;
-				const currentPos: LngLatTuple = [currentLng, currentLat];
+			const planned: LngLatTuple[] = [pointMetas[0].coord];
+			const driving = ensureDrivingInstance();
 
-				carMarkerRef.current?.setPosition(currentPos);
-				polylineRef.current?.setPath([...path.slice(0, -1), currentPos]);
+			for (let i = 0; i < pointMetas.length - 1; i++) {
+				const origin = planned[planned.length - 1];
+				const targetMeta = pointMetas[i + 1];
+				const destination = targetMeta.coord;
 
-				// 跟随小车移动
-				if (isFollowing && !userInteractedRef.current) {
-					smoothPanTo(currentPos, 100);
+				if (!driving) {
+					if (getDistanceMeters(origin, destination) > 0) {
+						planned.push(destination);
+					}
+					continue;
 				}
 
-				if (progress < 1) {
-					animationRef.current = requestAnimationFrame(animate);
-				} else {
-					carMarkerRef.current?.setPosition(latestPoint);
-					polylineRef.current?.setPath(path);
-					lastLatestPointRef.current = endPos;
+				const segmentPath = await new Promise<LngLatTuple[]>((resolve) => {
+					driving.search(origin, destination, async (status, result) => {
+						let segment: LngLatTuple[] = [];
 
-					// 动画结束时确保视角正确
-					if (isFollowing && !userInteractedRef.current) {
-						smoothPanTo(latestPoint, 300);
+						if (status === "complete" && result?.routes?.[0]?.steps?.length) {
+							segment = result.routes![0].steps!.flatMap((step) => (step.path || []).map((p) => toLngLatTuple(p as AMapLngLat | SimpleLngLat)));
+						}
+
+						if (segment.length === 0) {
+							segment = [origin, destination];
+						}
+
+						const last = segment[segment.length - 1];
+						const distToDest = getDistanceMeters(last, destination);
+
+						// 若规划无法抵达目标点，使用最后可达点并写回 Supabase
+						if (distToDest > 50 && targetMeta.trajectory?.id) {
+							try {
+								await updateTrajectoryPointLocation(targetMeta.trajectory.id, last[0], last[1], "已自动纠偏到可达位置");
+								targetMeta.coord = last;
+							} catch (err) {
+								console.error("写入新的轨迹点失败（可能无权限）:", err);
+							}
+						}
+
+						resolve(segment);
+					});
+				});
+
+				if (segmentPath.length > 0) {
+					const first = segmentPath[0];
+					if (getDistanceMeters(first, planned[planned.length - 1]) < 0.1) {
+						planned.push(...segmentPath.slice(1));
+					} else {
+						planned.push(...segmentPath);
 					}
 				}
-			};
-
-			animationRef.current = requestAnimationFrame(animate);
-		} else {
-			polylineRef.current?.setPath(path);
-			carMarkerRef.current?.setPosition(latestPoint);
-			lastLatestPointRef.current = {
-				longitude: latestPoint[0],
-				latitude: latestPoint[1],
-			};
-
-			// 更新视角
-			if (isFollowing && !userInteractedRef.current) {
-				smoothPanTo(latestPoint, 500);
 			}
-		}
-	}, [trajectories, isMapReady, createCarContent, calculateAngle, easeOutQuad, followCar, followZoom, isFollowing, smoothPanTo, startPoint]);
+
+			return planned;
+		};
+
+		const run = async () => {
+			if (!trajectories || trajectories.length === 0) {
+				handleEmpty();
+				return;
+			}
+
+			const plannedPath = await buildPlannedPath();
+			if (cancelled || plannedPath.length === 0) return;
+
+			const latestPoint = plannedPath[plannedPath.length - 1];
+			const pathStartPoint = plannedPath[0];
+			const prevLatest = lastLatestPointRef.current;
+
+			// 判断是否是新订单（起点变化）
+			const isNewOrder =
+				currentTrajectoryStartRef.current === null ||
+				currentTrajectoryStartRef.current[0] !== pathStartPoint[0] ||
+				currentTrajectoryStartRef.current[1] !== pathStartPoint[1];
+
+			// 如果是新订单，清除旧的轨迹线和标记
+			if (isNewOrder) {
+				if (polylineRef.current) {
+					map.remove(polylineRef.current);
+					polylineRef.current = null;
+				}
+				if (carMarkerRef.current) {
+					map.remove(carMarkerRef.current);
+					carMarkerRef.current = null;
+				}
+				lastLatestPointRef.current = null;
+				if (animationRef.current) {
+					cancelAnimationFrame(animationRef.current);
+					animationRef.current = null;
+				}
+				// 更新当前轨迹起点
+				currentTrajectoryStartRef.current = pathStartPoint;
+			}
+
+			// 创建或更新轨迹线
+			if (!polylineRef.current) {
+				polylineRef.current = new AMap.Polyline({
+					path: plannedPath,
+					isOutline: true,
+					outlineColor: "#ffeeff",
+					borderWeight: 1,
+					strokeColor: "#3366FF",
+					strokeOpacity: 1,
+					strokeWeight: 6,
+					strokeStyle: "solid",
+					strokeDasharray: [10, 5],
+					lineJoin: "round",
+					lineCap: "round",
+					zIndex: 50,
+					map,
+				});
+			} else {
+				polylineRef.current.setPath(plannedPath);
+			}
+
+			// 创建或更新小车标记
+			if (!carMarkerRef.current) {
+				carMarkerRef.current = new AMap.Marker({
+					position: latestPoint,
+					content: createCarContent(0),
+					offset: new AMap.Pixel(-20, -20),
+					map,
+					zIndex: 200,
+				});
+
+				// 初始化时设置视角
+				if (followCar && !userInteractedRef.current) {
+					map.setZoomAndCenter(followZoom, latestPoint, false, 500);
+				} else if (polylineRef.current) {
+					map.setFitView([polylineRef.current, carMarkerRef.current], false, [50, 50, 50, 50]);
+				}
+
+				lastLatestPointRef.current = {
+					longitude: latestPoint[0],
+					latitude: latestPoint[1],
+				};
+				return;
+			}
+
+			// 检测新点
+			const isNewPoint = prevLatest && (prevLatest.longitude !== latestPoint[0] || prevLatest.latitude !== latestPoint[1]);
+
+			if (isNewPoint && prevLatest) {
+				if (animationRef.current) cancelAnimationFrame(animationRef.current);
+
+				const startPos = prevLatest;
+				const endPos: Coordinate = {
+					longitude: latestPoint[0],
+					latitude: latestPoint[1],
+				};
+
+				const angle = calculateAngle(startPos, endPos);
+				carMarkerRef.current.setAngle(90 - angle);
+
+				const duration = 2000;
+				let startTime: number | null = null;
+
+				const animate = (timestamp: number) => {
+					if (!startTime) startTime = timestamp;
+					const progress = Math.min((timestamp - startTime) / duration, 1);
+					const ease = easeOutQuad(progress);
+
+					const currentLng = startPos.longitude + (endPos.longitude - startPos.longitude) * ease;
+					const currentLat = startPos.latitude + (endPos.latitude - startPos.latitude) * ease;
+					const currentPos: LngLatTuple = [currentLng, currentLat];
+
+					carMarkerRef.current?.setPosition(currentPos);
+					polylineRef.current?.setPath([...plannedPath.slice(0, -1), currentPos]);
+
+					// 跟随小车移动
+					if (isFollowing && !userInteractedRef.current) {
+						smoothPanTo(currentPos, 100);
+					}
+
+					if (progress < 1) {
+						animationRef.current = requestAnimationFrame(animate);
+					} else {
+						carMarkerRef.current?.setPosition(latestPoint);
+						polylineRef.current?.setPath(plannedPath);
+						lastLatestPointRef.current = endPos;
+
+						// 动画结束时确保视角正确
+						if (isFollowing && !userInteractedRef.current) {
+							smoothPanTo(latestPoint, 300);
+						}
+					}
+				};
+
+				animationRef.current = requestAnimationFrame(animate);
+			} else {
+				polylineRef.current?.setPath(plannedPath);
+				carMarkerRef.current?.setPosition(latestPoint);
+				lastLatestPointRef.current = {
+					longitude: latestPoint[0],
+					latitude: latestPoint[1],
+				};
+
+				// 更新视角
+				if (isFollowing && !userInteractedRef.current) {
+					smoothPanTo(latestPoint, 500);
+				}
+			}
+		};
+
+		run();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		trajectories,
+		isMapReady,
+		createCarContent,
+		calculateAngle,
+		easeOutQuad,
+		followCar,
+		followZoom,
+		isFollowing,
+		smoothPanTo,
+		startPoint,
+		ensureDrivingInstance,
+		getDistanceMeters,
+		toLngLatTuple,
+	]);
 
 	// ---------------------------------------------------------------------------
 	// 渲染
