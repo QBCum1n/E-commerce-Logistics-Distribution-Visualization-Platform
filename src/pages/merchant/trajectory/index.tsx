@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, Row, Col, Spin, message, Button, Switch } from "antd";
+import { Card, Row, Col, Spin, message, Button, Switch, Tooltip } from "antd";
 import { getOrders, getOrdersInDeliveryRange } from "@/services/orderService";
 import { getCurrentUserShop } from "@/services/shopService";
 import TrajectoryMap from "@/components/map/trajectoryMap";
@@ -129,19 +129,21 @@ const LogisticsTrajectoryPage = () => {
 									onChange={handleRangeFilterChange}
 								/>
 							</div>
-							<Button type="primary" onClick={async () => {
-								// 调用地图组件中的配送范围更新函数
-								if (mapRef && mapRef.current && mapRef.current.handleDeliveryRangeUpdate) {
-									try {
-										await mapRef.current.handleDeliveryRangeUpdate();
-									} catch (error) {
-										console.error("更新配送范围失败:", error);
-										messageApi.error("更新配送范围失败");
+							<Tooltip title="圈选视口中的地图范围作为配送范围">
+								<Button type="primary" onClick={async () => {
+									// 调用地图组件中的配送范围更新函数
+									if (mapRef && mapRef.current && mapRef.current.handleDeliveryRangeUpdate) {
+										try {
+											await mapRef.current.handleDeliveryRangeUpdate();
+										} catch (error) {
+											console.error("更新配送范围失败:", error);
+											messageApi.error("更新配送范围失败");
+										}
 									}
-								}
-							}}>
-								圈选配送范围
-							</Button>
+								}}>
+									圈选配送范围
+								</Button>
+							</Tooltip>
 						</div>
 					</div>
 				} 

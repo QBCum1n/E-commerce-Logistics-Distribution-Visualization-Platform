@@ -7,24 +7,24 @@ export const getOrders = async (params: OrderQueryParams): Promise<{ items: Orde
 	try {
 		let query = supabase
 			.from("orders")
-			.select("*, logistics_providers(name)", { count: "exact" });
+			.select("*, logistics_providers(name)", { count: "exact" });//query选出了所有的订单，包括订单号，顾客名，状态，物流提供商名
 
 		// 状态筛选
 		if (params.status && params.status !== "ALL") {
-			query = query.eq("status", params.status);
+			query = query.eq("status", params.status);//选出状态是传入的这个params.status的订单
 		}
 
 		// 搜索筛选
 		if (params.searchText) {
 			query = query.or(`order_number.ilike.%${params.searchText}%,customer_name.ilike.%${params.searchText}%`);
-		}
+		}//选出订单号包含params.searchText或者顾客名包含params.searchText的订单
 
 		// 排序
 		query = query.order(params.sortField, { ascending: params.sortOrder === "asc" });
 
 		// 分页
-		const from = (params.page - 1) * params.pageSize;
-		const to = from + params.pageSize - 1;
+		const from = (params.page - 1) * params.pageSize;//计算出分页的起始索引
+		const to = from + params.pageSize - 1;//计算出分页的结束索引
 		query = query.range(from, to);
 
 		const { data, error, count } = await query;

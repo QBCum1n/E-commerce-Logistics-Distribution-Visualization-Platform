@@ -71,7 +71,7 @@ const Dashboard = () => {
 	const initDistrictChart = () => {
 		if (!districtChartRef.current) return;
 		
-		// 从订单地址提取深圳各区数据
+		// 从订单地址提取深圳各区数据                 //地区         //出现了几次
 		const districtData = orders.reduce((acc: {name: string, value: number}[], order) => {
 			// 简单的地址解析逻辑，实际应用中可能需要更复杂的解析
 			const address = order.customer_address || "";

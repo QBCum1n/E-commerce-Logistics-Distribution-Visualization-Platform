@@ -11,7 +11,6 @@ import { useToastMessage } from "@/hooks/useToastMessage";
 import OrderDetailModal from "../../../components/orders/order-detail-modal";
 import DeleteModal from "../../../components/orders/delete-modal";
 import LogisticsProviderModal from "../../../components/orders/logistics-provider-modal";
-import CustomerLocation from "../../../components/orders/CustomerLocation";
 import { updateOrderLogisticsProvider } from "@/services/logisticsService";
 
 // -----------------------------------------------------------------------------
@@ -67,6 +66,7 @@ const OrderList = () => {
 		sortOrder: "desc",
 	});
 
+	// 1. 订单列表获取逻辑
 	const fetchOrders = useCallback(async () => {
 		setLoading(true);
 		try {
@@ -137,6 +137,7 @@ const OrderList = () => {
 		}
 	};
 
+	// 单个订单确认逻辑
 	const handleConfirmOrder = async (orderId: string) => {
 		try {
 			const { error } = await supabase
@@ -159,6 +160,7 @@ const OrderList = () => {
 		}
 	};
 
+	// 单个订单删除逻辑
 	const handleDeleteOrder = async (orderId: string) => {
 		try {
 			const { error } = await supabase.from("orders").delete().eq("id", orderId);
@@ -261,13 +263,6 @@ const OrderList = () => {
 			key: "customer_phone",
 			width: 140,
 			render: (text) => <span className="text-[13px] text-slate-400 font-mono tracking-wide select-all">{text}</span>,
-		},
-		{
-			title: "客户位置",
-			dataIndex: "id",
-			key: "customer_location",
-			ellipsis: { showTitle: false },
-			render: (orderId) => <CustomerLocation orderId={orderId} />,
 		},
 		{
 			title: "总金额",
